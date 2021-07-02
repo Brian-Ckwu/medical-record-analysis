@@ -36,13 +36,21 @@ class Data(object):
         with open(ttas_path, mode='rt', encoding='utf-8') as f:
             self.ttas_dict = json.load(f)
     
-    # Get the DataFrame
-    def get_df(self):
-        return self.__df
+    """
+        Get DataFrame functions: get subsets of self.__df
+    """
+    # Get the whole DataFrame
+    def get_whole_df(self):
+        return self.__df.copy() # avoid modification of self.__df from the user
 
-    # Get DataFrame from TTAS code
+    # Get DataFrame of a particular TTAS code
     def get_df_from_cc(self, ttas_code):
-        return self.__df[self.__df['CC'].str.contains(ttas_code)]
+        return self.__df[self.__df["CC"].str.contains(ttas_code)] # already a copy, no need to use .copy()
+
+    # Get DataFrame of an icdcode
+    def get_df_from_icdcode(self, icdcode):
+        return self.__df[self.__df["ICD9"] == icdcode] # already a copy
+
 
     # Get the number of medical records (ssd / dsd / total)
     def get_doc_counts(self):
@@ -61,7 +69,7 @@ class Data(object):
             return df.groupby('Age')['DocLabel'].nunique().groupby(lambda age: age // 10).sum()
 
         d = {}
-        for name, df in zip(['SSD', 'DSD', 'All'], [self.__sdf, self.__ddf, self.get_df()]):
+        for name, df in zip(['SSD', 'DSD', 'All'], [self.__sdf, self.__ddf, self.get_whole_df()]):
             doc_count = get_age_doc(df)
             doc_count.at[8] = doc_count[doc_count.index >= 8].sum()
             doc_count.drop([9, 10], inplace=True)
@@ -210,7 +218,7 @@ class Data(object):
     def get_mean_nkw(self):
         d = {}
 
-        for dx_name, df in zip(['SSD', 'DSD', 'All'], [self.__sdf, self.__ddf, self.get_df()]):
+        for dx_name, df in zip(['SSD', 'DSD', 'All'], [self.__sdf, self.__ddf, self.get_whole_df()]):
             dd = {}
 
             # Process data
@@ -382,7 +390,7 @@ class Data(object):
 
     def plot_kw_prop_in_icdcodes(self, kw, icdcodes):
         # Initiate variables
-        df = self.get_df().copy()
+        df = self.get_whole_df().copy()
         df = df.loc[df['Content'] == kw]
         df.loc[:, 'posOrNeg'].fillna(value=3.0, inplace=True)
         icdcodes_p3_ndoc = self.group_icdcodes_ndoc()
@@ -415,7 +423,7 @@ class Data(object):
         with open(json_path, mode="rt", encoding="utf-8") as f:
             kw_groups = json.load(f)
 
-        df = self.get_df(cc=True)
+        df = self.get_whole_df(cc=True)
 
         for old, new in kw_groups.items():
             df.loc[df["Content"] == old, "Content"] = new
@@ -427,7 +435,7 @@ class Data(object):
         with open(json_path, mode="rt", encoding="utf-8") as f:
             kw_groups = json.load(f)
         
-        df = self.get_df(cc=True)
+        df = self.get_whole_df(cc=True)
 
         for ref_kw in kw_groups:
             to_be_grouped = kw_groups[ref_kw]
@@ -551,7 +559,7 @@ class Data(object):
     # Make keyword-cc relation (based on Fisher's exact test) DataFrame
     def make_kw_cc_rel_by_test(self, kw_num, cc_num, test="fisher"):
         # Get keywords
-        kw_series = self.get_df().groupby("Content")["DocLabel"].nunique()
+        kw_series = self.get_whole_df().groupby("Content")["DocLabel"].nunique()
         kws = kw_series.sort_values(ascending=False)[:kw_num].index
         # Get ccs
         ccs = self.get_cc_doc_counts(cc_num).index
@@ -561,7 +569,7 @@ class Data(object):
 
         # Loop through ccs
         for cc in ccs:
-            cc_df = self.get_df_from_cc(cc)
+            cc_df = self.get_whole_df_from_cc(cc)
             not_cc_df = self.__df.drop(cc_df.index)
             for kw in kws:
                 p_value = self.test_kw_rel(kw, cc_df, not_cc_df, test=test)[1]
@@ -573,7 +581,7 @@ class Data(object):
     # Make keyword-cc relation DataFrame (sort according to the ratio of cc_related count / all count of a keyword in a chief complaint)
     def make_kw_cc_rel_labelled(self, cc_code):
         # DataFrame of the chief complaint
-        df = self.get_df_from_cc(cc_code)
+        df = self.get_whole_df_from_cc(cc_code)
 
         # Get total count & cc_related count of the keywords
         kw_total_count = df.groupby("Content")["DocLabel"].nunique()
