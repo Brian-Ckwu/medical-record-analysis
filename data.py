@@ -5,9 +5,10 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import json
+import os
 
 class Data(object):
-    def __init__(self, data_path, icd_to_dx_path="./icd_to_dx/allcodes.json", ttas_path="./ttas/ttas_code_to_name.json"):
+    def __init__(self, data_path):
         # Convert the csv file to DataFrame
         self.__df = pd.read_csv(data_path, index_col='index', encoding='utf-8', dtype={'ICD9': np.str_})
         # Fill the empty values in the 'posOrNeg' column with 3.0
@@ -24,10 +25,14 @@ class Data(object):
         # Classify the icdcodes as symptom_dx or disease_dx
         self.__sdf = self.__df.loc[(self.__df['ICD9'] >= '780') & (self.__df['ICD9'] < '800')] # DataFrame of symptom_dx
         self.__ddf = self.__df.loc[(self.__df['ICD9'] < '780') | (self.__df['ICD9'] >= '800')] # DataFrame of disease_dx
+        # Load auxiliary files for converting codes to names
+        dirname = os.path.dirname(__file__)
         # ICD-9 code to diagnosis name
+        icd_to_dx_path = os.path.join(dirname, "icd_to_dx\\allcodes.json")
         with open(icd_to_dx_path, mode='rt', encoding="utf-8") as f:
             self.icd_to_dx = json.load(f)
         # TTAS code to Chinese name
+        ttas_path = os.path.join(dirname, "ttas\\ttas_code_to_name.json")
         with open(ttas_path, mode='rt', encoding='utf-8') as f:
             self.ttas_dict = json.load(f)
     
@@ -233,7 +238,7 @@ class Data(object):
     # Names related function
     # new func to replace get_dx_names
     def get_dx_name(self, depth, icdcode):
-        return self.icd_to_dx[depth][icdcode]
+        return self.icd_to_dx[str(depth)][str(icdcode)]
 
     # old func: convert icdcodes to diagnosis names
     def get_dx_names(self, icdcodes):
@@ -643,15 +648,7 @@ class Data(object):
         return row  
 
 def main():
-    filename = "./data/all_data/v3/ALL_Data_List_v3_kwcor_grouped_ttas.csv"
-    data = Data(filename)
-
-    kw_num = 1000
-    cc_num = 15
-    rel_df = data.make_kw_cc_rel_by_test(kw_num, cc_num, test="chi")
-
-    out_filename = f"./keywords/relation/cc/cc_{cc_num}_kw_{kw_num}_chi.csv"
-    rel_df.to_csv(out_filename, encoding="utf-8")
+    # test your code here
 
     return 0
 
