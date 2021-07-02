@@ -115,41 +115,6 @@ class Data(object):
 
         return df[['Names', 'SSD', 'DSD', 'All']].convert_dtypes()
     
-    # Get all icdcodes
-    def get_icdcodes(self):
-        return self.__df['ICD9'].unique()
-    
-    # Get ndoc (number of medical records) of an icdcode
-    def get_icdcode_ndoc(self, icdcode):
-        return self.get_icdcodes_ndoc()[icdcode]
-    
-    def get_icdcodes_ndoc(self):
-        return self.__df.groupby('ICD9')['DocLabel'].nunique()
-    
-    # Get the icdcodes of which ndoc is greater than a certain number
-    def get_icdcodes_ndoc_gt(self, ndoc):
-        icdcodes_ndoc = self.get_icdcodes_ndoc()
-        return icdcodes_ndoc[icdcodes_ndoc > ndoc].index.tolist()
-
-    def get_keywords(self):
-        return self.__df['Content'].unique()
-
-    def get_keyword_count(self, keyword):  # If a keyword is present in a doc, count once
-        keywords_count = self.get_keywords_count()
-        count = keywords_count.at[keyword]
-        return count
-
-    def get_keywords_count(self):
-        return self.__df.groupby('Content')['DocLabel'].nunique()
-    
-    def get_keywords_count_gt(self, count):
-        keywords_count = self.get_keywords_count()
-        return keywords_count[keywords_count > count].index.tolist()
-    
-    def get_keywords_count_in_icdcode(self, icdcode):
-        icdcode_df = self.__df[self.__df['ICD9'] == icdcode]
-        return icdcode_df.groupby('Content')['DocLabel'].nunique()
-    
     def get_icd_keyword_count(self, icdcode, keyword):
         icd_df = self.__df[self.__df['ICD9'] == icdcode][['Content', 'posOrNeg', 'DocLabel']]
         # Process the data by groupby()
@@ -166,10 +131,6 @@ class Data(object):
             'total': try_get_count(keywords_count, keyword)
         }
         return count
-    
-    def sort_and_save(self, filepath, by='Content'):
-        sorted_df = self.__df.sort_values(by, axis='index')
-        sorted_df.to_csv(filepath, encoding='big5')
     
     def analyze_keyword_in_icdcode(self, keyword, icdcode):
         total_df = self.__df[(self.__df['ICD9'] == icdcode) & (self.__df['Content'] == keyword)]
