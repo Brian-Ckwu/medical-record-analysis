@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import json
 
-class Data:
+class Data(object):
     def __init__(self, data_path, icd_to_dx_path="./icd_to_dx/allcodes.json", ttas_path="./ttas/ttas.json"):
         # Convert the csv file to DataFrame
         self.__df = pd.read_csv(data_path, index_col='index', encoding='utf-8', dtype={'ICD9': np.str_})
@@ -22,10 +22,10 @@ class Data:
             11: 'non_surgery'
         }
         # Classify the icdcodes as symptom_dx or disease_dx
-        self.s_df = self.__df.loc[(self.__df['ICD9'] >= '780') & (self.__df['ICD9'] < '800')] # DataFrame of symptom_dx
-        self.d_df = self.__df.loc[(self.__df['ICD9'] < '780') | (self.__df['ICD9'] >= '800')] # DataFrame of disease_dx
+        self.__sdf = self.__df.loc[(self.__df['ICD9'] >= '780') & (self.__df['ICD9'] < '800')] # DataFrame of symptom_dx
+        self.__ddf = self.__df.loc[(self.__df['ICD9'] < '780') | (self.__df['ICD9'] >= '800')] # DataFrame of disease_dx
         # ICD-9 code to diagnosis conversion file
-        with open(icd_to_dx_path, 'rt') as f:
+        with open(icd_to_dx_path, mode='rt', encoding="utf-8") as f:
             self.icd_to_dx = json.load(f)
         # 'TTAS code to name' conversion file
         self.ttas_path = ttas_path
@@ -50,8 +50,8 @@ class Data:
             return df.groupby('DocLabel').ngroups
             
         return {
-            'SSD': get_doc_count(self.s_df),
-            'DSD': get_doc_count(self.d_df),
+            'SSD': get_doc_count(self.__sdf),
+            'DSD': get_doc_count(self.__ddf),
             'All': get_doc_count(self.__df)
         }
     
@@ -61,7 +61,7 @@ class Data:
             return df.groupby('Age')['DocLabel'].nunique().groupby(lambda age: age // 10).sum()
 
         d = {}
-        for name, df in zip(['SSD', 'DSD', 'All'], [self.s_df, self.d_df, self.get_df()]):
+        for name, df in zip(['SSD', 'DSD', 'All'], [self.__sdf, self.__ddf, self.get_df()]):
             doc_count = get_age_doc(df)
             doc_count.at[8] = doc_count[doc_count.index >= 8].sum()
             doc_count.drop([9, 10], inplace=True)
@@ -96,7 +96,7 @@ class Data:
             return cc_doc_counts_dict
         # Get cc_doc_counts_dict
         cc_doc_counts = {}
-        for dx_type, df in zip(['SSD', 'DSD'], [self.s_df, self.d_df]):
+        for dx_type, df in zip(['SSD', 'DSD'], [self.__sdf, self.__ddf]):
             cc_doc_counts[dx_type] = get_cc_doc_counts_dict(df)
         # Construct DataFrame
         df = pd.DataFrame(data=cc_doc_counts).fillna(0)
@@ -210,7 +210,7 @@ class Data:
     def get_mean_nkw(self):
         d = {}
 
-        for dx_name, df in zip(['SSD', 'DSD', 'All'], [self.s_df, self.d_df, self.get_df()]):
+        for dx_name, df in zip(['SSD', 'DSD', 'All'], [self.__sdf, self.__ddf, self.get_df()]):
             dd = {}
 
             # Process data
@@ -280,7 +280,7 @@ class Data:
     def get_dx_counts(self, num):
         dx_props = {}
         dx_types = ['SSD', 'DSD']
-        for dx_type, df in zip(dx_types, [self.s_df, self.d_df]):
+        for dx_type, df in zip(dx_types, [self.__sdf, self.__ddf]):
             dx_props[dx_type] = df.groupby('ICD9')['DocLabel'].nunique().groupby(lambda icd: icd[:3]).sum().sort_values(ascending=False).head(num)
 
         return [pd.DataFrame(data={'names': self.get_dx_names(dx_props[dx_type].index),'counts': dx_props[dx_type]}) for dx_type in dx_types]
@@ -350,7 +350,7 @@ class Data:
     def plot_common_kw(self, p_min, p_max=1, cat='total'): # cat: {4: 'diagnosis', 5: 'drug', 6: 's/s', 7: 'surgery', 8: 'others', 11: 'non_surgery'}
         fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(10, 8))
         fig.suptitle(('total_kw' if cat == 'total' else f'{self.labels[cat]}_kw') + f' ({round(p_min * 100, 1)}% - {round(p_max * 100, 1)}%)', x=0.08, y=0.91, fontweight=600)
-        for i, df in enumerate([self.s_df, self.d_df]):
+        for i, df in enumerate([self.__sdf, self.__ddf]):
             # Fill the empty values in 'posOrNeg' column with 3.0
             df = df.copy()
             if cat != 'total':
@@ -461,7 +461,7 @@ class Data:
             l_cat_df, r_cat_df = cat_df[cat_df['Sex'] == 'M'], cat_df[cat_df['Sex'] == 'F']
             l_name, r_name = 'Male', 'Female'
         else:
-            l_df, r_df = self.s_df, self.d_df
+            l_df, r_df = self.__sdf, self.__ddf
             l_cat_df, r_cat_df = cat_df[(cat_df['ICD9'] >= '780') & (cat_df['ICD9'] < '800')], cat_df[(cat_df['ICD9'] < '780') | (cat_df['ICD9'] >= '800')]
             l_name, r_name = 'Symptom_dx', 'Disease_dx'
 
@@ -492,7 +492,7 @@ class Data:
     def get_keywords_diff(self, pos_or_neg, category):
         # Count keywords number in SSD and DSD medical records
         kwn = {}
-        for dx_type, df in zip(['SSD', 'DSD'], [self.s_df, self.d_df]):
+        for dx_type, df in zip(['SSD', 'DSD'], [self.__sdf, self.__ddf]):
             if ((pos_or_neg in [1, 2, 'total']) and (category in [4, 5, 6, 7, 8, 11])):
                 if (pos_or_neg == 'total'):
                     df = df[df['label'] == category]
