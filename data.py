@@ -7,7 +7,7 @@ import numpy as np
 import json
 
 class Data(object):
-    def __init__(self, data_path, icd_to_dx_path="./icd_to_dx/allcodes.json", ttas_path="./ttas/ttas.json"):
+    def __init__(self, data_path, icd_to_dx_path="./icd_to_dx/allcodes.json", ttas_path="./ttas/ttas_code_to_name.json"):
         # Convert the csv file to DataFrame
         self.__df = pd.read_csv(data_path, index_col='index', encoding='utf-8', dtype={'ICD9': np.str_})
         # Fill the empty values in the 'posOrNeg' column with 3.0
@@ -24,17 +24,12 @@ class Data(object):
         # Classify the icdcodes as symptom_dx or disease_dx
         self.__sdf = self.__df.loc[(self.__df['ICD9'] >= '780') & (self.__df['ICD9'] < '800')] # DataFrame of symptom_dx
         self.__ddf = self.__df.loc[(self.__df['ICD9'] < '780') | (self.__df['ICD9'] >= '800')] # DataFrame of disease_dx
-        # ICD-9 code to diagnosis conversion file
+        # ICD-9 code to diagnosis name
         with open(icd_to_dx_path, mode='rt', encoding="utf-8") as f:
             self.icd_to_dx = json.load(f)
-        # 'TTAS code to name' conversion file
-        self.ttas_path = ttas_path
+        # TTAS code to Chinese name
         with open(ttas_path, mode='rt', encoding='utf-8') as f:
-            name_to_code = json.load(f)
-            code_to_name = {}
-            for name, code in name_to_code.items():
-                code_to_name[code] = name
-            self.ttas_dict = code_to_name
+            self.ttas_dict = json.load(f)
     
     # Get the DataFrame
     def get_df(self):
@@ -235,7 +230,12 @@ class Data(object):
     def group_icdcodes_ndoc(self):
         return self.__df.groupby('ICD9')['DocLabel'].nunique().groupby(lambda code: str(code).split('.')[0].zfill(3)).sum()
 
-    # Func: convert icdcodes to diagnosis names
+    # Names related function
+    # new func to replace get_dx_names
+    def get_dx_name(self, depth, icdcode):
+        return self.icd_to_dx[depth][icdcode]
+
+    # old func: convert icdcodes to diagnosis names
     def get_dx_names(self, icdcodes):
         names = []
         for icdcode in icdcodes:
