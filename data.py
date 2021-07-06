@@ -42,6 +42,14 @@ class Data(object):
     # Get the whole DataFrame
     def get_whole_df(self):
         return self.__df.copy() # avoid modification of self.__df from the user
+    
+    # Get the SSD DataFrame
+    def get_whole_sdf(self):
+        return self.__sdf.copy()
+
+    # Get the DSD DataFrame
+    def get_whole_ddf(self):
+        return self.__ddf.copy()
 
     # Get DataFrame of a particular TTAS code
     def get_df_from_cc(self, ttas_code):
