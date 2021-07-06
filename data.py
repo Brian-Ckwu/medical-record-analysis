@@ -37,8 +37,11 @@ class Data(object):
             self.ttas_dict = json.load(f)
     
     """
-        Get DataFrame functions: get subsets of self.__df
+        Get DataFrame functions:
+            1. From self.__df
+            2. From a specific df
     """
+    # 1. From self.__df
     # Get the whole DataFrame
     def get_whole_df(self):
         return self.__df.copy() # avoid modification of self.__df from the user
@@ -59,6 +62,14 @@ class Data(object):
     def get_df_from_icdcode(self, icdcode):
         return self.__df[self.__df["ICD9"] == icdcode] # already a copy
 
+    # 2. From a specific df
+    @staticmethod
+    def get_sub_sdf(df):
+        return df.loc[(df['ICD9'] >= '780') & (df['ICD9'] < '800')]
+    
+    @staticmethod
+    def get_sub_ddf(df):
+        return df.loc[(df['ICD9'] < '780') | (df['ICD9'] >= '800')]
 
     # Get the number of medical records (ssd / dsd / total)
     def get_doc_counts(self):
@@ -444,7 +455,7 @@ class Data(object):
             l_name, r_name = 'Male', 'Female'
         else:
             l_df, r_df = self.__sdf, self.__ddf
-            l_cat_df, r_cat_df = cat_df[(cat_df['ICD9'] >= '780') & (cat_df['ICD9'] < '800')], cat_df[(cat_df['ICD9'] < '780') | (cat_df['ICD9'] >= '800')]
+            l_cat_df, r_cat_df = self.get_sub_sdf(cat_df), self.get_sub_ddf(cat_df)
             l_name, r_name = 'Symptom_dx', 'Disease_dx'
 
         for i, df, cat_df in zip(range(2), [l_df, r_df], [l_cat_df, r_cat_df]):
