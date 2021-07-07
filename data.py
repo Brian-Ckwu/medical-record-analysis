@@ -10,30 +10,30 @@ import os
 class Data(object):
     def __init__(self, data_path):
         # Convert the csv file to DataFrame
-        self.__df = pd.read_csv(data_path, index_col='index', encoding='utf-8', dtype={'ICD9': np.str_})
-        # Fill the empty values in the 'posOrNeg' column with 3.0
-        self.__df['posOrNeg'].fillna(3.0, inplace=True)
+        self.__df = pd.read_csv(data_path, index_col="index", encoding="utf-8", dtype={"Content": np.str_, "ICD9": np.str_})
+        # Fill the empty values in the "posOrNeg" column with 3.0
+        self.__df["posOrNeg"].fillna(3.0, inplace=True)
         # Keyword classification
         self.labels = {
-            4: 'diagnosis',
-            5: 'drug',
-            6: 's/s',
-            7: 'surgery',
-            8: 'others',
-            11: 'non_surgery'
+            4: "diagnosis",
+            5: "drug",
+            6: "s/s",
+            7: "surgery",
+            8: "others",
+            11: "non_surgery"
         }
         # Classify the icdcodes as symptom_dx or disease_dx
-        self.__sdf = self.__df.loc[(self.__df['ICD9'] >= '780') & (self.__df['ICD9'] < '800')] # DataFrame of symptom_dx
-        self.__ddf = self.__df.loc[(self.__df['ICD9'] < '780') | (self.__df['ICD9'] >= '800')] # DataFrame of disease_dx
+        self.__sdf = self.__df.loc[(self.__df["ICD9"] >= "780") & (self.__df["ICD9"] < "800")] # DataFrame of symptom_dx
+        self.__ddf = self.__df.loc[(self.__df["ICD9"] < "780") | (self.__df["ICD9"] >= "800")] # DataFrame of disease_dx
         # Load auxiliary files for converting codes to names
         dirname = os.path.dirname(__file__)
         # ICD-9 code to diagnosis name
         icd_to_dx_path = os.path.join(dirname, "icd_to_dx\\allcodes.json")
-        with open(icd_to_dx_path, mode='rt', encoding="utf-8") as f:
+        with open(icd_to_dx_path, mode="rt", encoding="utf-8") as f:
             self.icd_to_dx = json.load(f)
         # TTAS code to Chinese name
         ttas_path = os.path.join(dirname, "ttas\\ttas_code_to_name.json")
-        with open(ttas_path, mode='rt', encoding='utf-8') as f:
+        with open(ttas_path, mode="rt", encoding="utf-8") as f:
             self.ttas_dict = json.load(f)
     
     """
@@ -65,21 +65,57 @@ class Data(object):
     # 2. From a specific df
     @staticmethod
     def get_sub_sdf(df):
-        return df.loc[(df['ICD9'] >= '780') & (df['ICD9'] < '800')]
+        return df.loc[(df["ICD9"] >= "780") & (df["ICD9"] < "800")]
     
     @staticmethod
     def get_sub_ddf(df):
-        return df.loc[(df['ICD9'] < '780') | (df['ICD9'] >= '800')]
+        return df.loc[(df["ICD9"] < "780") | (df["ICD9"] >= "800")]
+
+    """
+        Change DataFrame functions: changing the DataFrame and return a new one
+    """
+    def change_kw(self, json_path):
+        with open(json_path, mode="rt", encoding="utf-8") as f:
+            kw_groups = json.load(f)
+
+        df = self.get_whole_df()
+
+        for old, new in kw_groups.items():
+            df.loc[df["Content"] == old, "Content"] = new
+            print(f"{old} -> {new}")
+
+        return df
+
+    def group_kw(self, json_path):
+        with open(json_path, mode="rt", encoding="utf-8") as f:
+            kw_groups = json.load(f)
+        
+        df = self.get_whole_df()
+
+        for ref_kw in kw_groups:
+            to_be_grouped = kw_groups[ref_kw]
+            for kw in to_be_grouped:
+                df.loc[df["Content"] == kw, "Content"] = ref_kw
+                print(f"{kw} -> {ref_kw}")
+            print("--------------------------------")
+
+        return df
+
+    @staticmethod
+    def split_keyword(df, keyword, delimiter="/"):
+        df.loc[df["Content"] == keyword, "Content"] = df.loc[df["Content"] == keyword, "Content"].str.split(delimiter)
+        return df.explode("Content").reset_index(drop=True) # drop=True: avoid adding the old index as a column in the new DataFrame
+
 
     # Get the number of medical records (ssd / dsd / total)
     def get_doc_counts(self):
         def get_doc_count(df):
-            return df.groupby('DocLabel').ngroups
+            return df.groupby("DocLabel").ngroups
             
         return {
-            'SSD': get_doc_count(self.__sdf),
-            'DSD': get_doc_count(self.__ddf),
-            'All': get_doc_count(self.__df)
+            "SSD": get_doc_count(self.__sdf),
+            "DSD": get_doc_count(self.__ddf),
+            "All": get_doc_count(self.__df)
         }
     
     # Get doc counts stratified by age
@@ -398,33 +434,6 @@ class Data(object):
                 plt.text(pos, j, f'{round(prop * 100, 1)}' if prop > 0.015 else '', ha='center', va='center', color='white')
             # Plot total percentage
             plt.text(props.sum() + for_plot.values[-1].sum() * 0.01, j, f'{round(props.sum() * 100, 2)}%', va='center')
-
-    def change_kw(self, json_path):
-        with open(json_path, mode="rt", encoding="utf-8") as f:
-            kw_groups = json.load(f)
-
-        df = self.get_whole_df(cc=True)
-
-        for old, new in kw_groups.items():
-            df.loc[df["Content"] == old, "Content"] = new
-            print(f"{old} -> {new}")
-
-        return df
-
-    def group_kw(self, json_path):
-        with open(json_path, mode="rt", encoding="utf-8") as f:
-            kw_groups = json.load(f)
-        
-        df = self.get_whole_df(cc=True)
-
-        for ref_kw in kw_groups:
-            to_be_grouped = kw_groups[ref_kw]
-            for kw in to_be_grouped:
-                df.loc[df["Content"] == kw, "Content"] = ref_kw
-                print(f"{kw} -> {ref_kw}")
-            print("--------------------------------")
-
-        return df
     
     def plot_age_nkw_dist(self, target, category=0, interval=10, ax=None):
         if (interval not in [5, 10]):
@@ -476,11 +485,6 @@ class Data(object):
             ax.set_ylabel('Age')
             ax.set_title(f'Age-keywords distribution ({labels[category]})')
             ax.legend(loc='lower left')
-    
-    def split_keywords(self, target, delimiter='/'):
-        df = self.__df.copy()
-        df.loc[df['Content'] == target, 'Content'] = df.loc[df['Content'] == target, 'Content'].str.split(delimiter)
-        return df.explode('Content').reset_index(drop=True)
     
     def get_keywords_diff(self, pos_or_neg, category):
         # Count keywords number in SSD and DSD medical records
