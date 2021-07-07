@@ -106,7 +106,9 @@ class Data(object):
         df.loc[df["Content"] == keyword, "Content"] = df.loc[df["Content"] == keyword, "Content"].str.split(delimiter)
         return df.explode("Content").reset_index(drop=True) # drop=True: avoid adding the old index as a column in the new DataFrame
 
-
+    """
+        Get Stats Functions: getting the stats of the DataFrame
+    """
     # Get the number of medical records (ssd / dsd / total)
     def get_doc_counts(self):
         def get_doc_count(df):
@@ -256,10 +258,108 @@ class Data(object):
         
         return pd.DataFrame(data=d)
 
+    def get_keywords_diff(self, pos_or_neg, category):
+        # Count keywords number in SSD and DSD medical records
+        kwn = {}
+        for dx_type, df in zip(['SSD', 'DSD'], [self.__sdf, self.__ddf]):
+            if ((pos_or_neg in [1, 2, 'total']) and (category in [4, 5, 6, 7, 8, 11])):
+                if (pos_or_neg == 'total'):
+                    df = df[df['label'] == category]
+                else:
+                    df = df[(df['posOrNeg'] == pos_or_neg) & (df['label'] == category)]
+            else:
+                raise ValueError('pos_or_neg must be 1, 2, or 3 / category msut be 4, 5, 6, 7, 8, or 11')
+            kwn[dx_type] = df.groupby('Content')['DocLabel'].nunique() / df.groupby('DocLabel').ngroups
+        # Construct DataFrame
+        kwn_df = pd.DataFrame(data=kwn).fillna(0)
+        kwn_df['Dif'] = kwn_df['SSD'] - kwn_df['DSD']
+        return kwn_df.sort_values(by='Dif', ascending=False)
+
     def group_icdcodes_ndoc(self):
         return self.__df.groupby('ICD9')['DocLabel'].nunique().groupby(lambda code: str(code).split('.')[0].zfill(3)).sum()
 
-    # Names related function
+    """
+        Statistical tests functions
+    """
+    # Perform Fisher's exact test on a keyword's frequency in an icdcode
+    def test_kw_icd_rel(self, keyword, icdcode, mode):
+        counts = {}
+        df = self.__df
+        icd_df = df[df['ICD9'].str[:len(icdcode)] == icdcode]
+        for key, df in zip(['icd', 'all'], [icd_df, df]):
+            all_doc_count = df.groupby('DocLabel').ngroups
+            kw_doc_count = df[(df['posOrNeg'] == 1.0) & (df['Content'] == keyword)].groupby('DocLabel').ngroups
+            counts[key] = [kw_doc_count, all_doc_count - kw_doc_count]
+        return stats.fisher_exact([counts['icd'], counts['all']], alternative=mode) # Odds ratio & p-value
+
+    def test_kw_icds_rel(self, keyword, icdcodes, mode='greater'):
+        names = self.get_dx_names(icdcodes)
+        p_values = [self.test_kw_icd_rel(keyword, icdcode, mode)[1] for icdcode in icdcodes]
+        return pd.DataFrame(data={'names': names, 'p_values': p_values}, index=icdcodes)
+
+    # Perform Fisher's exact test on a keyword's frequency between two DataFrames (df2 is usually reference df)
+    def test_kw_rel(self, keyword, df1, df2, mode="greater", test="fisher"):
+        counts = []
+
+        for df in [df1, df2]:
+            all_doc_count = df.groupby("DocLabel").ngroups
+            kw_doc_count = df[df["Content"] == keyword].groupby("DocLabel").ngroups
+
+            counts.append([kw_doc_count, all_doc_count - kw_doc_count])
+        
+        print(counts)
+
+        if test == "fisher":
+            result = stats.fisher_exact(counts, alternative=mode)
+        elif test == "chi":
+            result = stats.chi2_contingency(counts)
+        else:
+            ValueError("arg test must be 'fisher' or 'chi'")
+        
+        return result # Return value: (oddsratio, p_value)
+
+    # Make keyword-cc relation (based on Fisher's exact test) DataFrame
+    def make_kw_cc_rel_by_test(self, kw_num, cc_num, test="fisher"):
+        # Get keywords
+        kw_series = self.get_whole_df().groupby("Content")["DocLabel"].nunique()
+        kws = kw_series.sort_values(ascending=False)[:kw_num].index
+        # Get ccs
+        ccs = self.get_cc_doc_counts(cc_num).index
+
+        # Construct df
+        df = pd.DataFrame(index=kws, columns=ccs, dtype=np.float64).fillna(0)
+
+        # Loop through ccs
+        for cc in ccs:
+            cc_df = self.get_whole_df_from_cc(cc)
+            not_cc_df = self.__df.drop(cc_df.index)
+            for kw in kws:
+                p_value = self.test_kw_rel(kw, cc_df, not_cc_df, test=test)[1]
+                df.at[kw, cc] = p_value
+                print(f"{kw} in {cc}: {p_value:.2f}")
+        
+        return df
+    
+    # Make keyword-cc relation DataFrame (sort according to the ratio of cc_related count / all count of a keyword in a chief complaint)
+    def make_kw_cc_rel_labelled(self, cc_code):
+        # DataFrame of the chief complaint
+        df = self.get_whole_df_from_cc(cc_code)
+
+        # Get total count & cc_related count of the keywords
+        kw_total_count = df.groupby("Content")["DocLabel"].nunique()
+        kw_ccr_count = df[df["CC_Related"] == True].groupby("Content")["DocLabel"].nunique()
+
+        # Concatenate two series and calculate the ratio
+        kw_concat = pd.concat([kw_ccr_count, kw_total_count], axis=1).fillna(0).convert_dtypes()
+        kw_concat.columns = ["cc_related", "all"]
+        kw_concat["ratio"] = kw_concat["cc_related"] / kw_concat["all"]
+        kw_concat.sort_values(by="ratio", ascending=False, inplace=True)
+
+        return kw_concat
+
+    """
+        Names related functions
+    """
     # new func to replace get_dx_names
     def get_dx_name(self, depth, icdcode):
         return self.icd_to_dx[str(depth)][str(icdcode)]
@@ -277,6 +377,9 @@ class Data(object):
                     pass
         return names
 
+    """
+        Plotting functions
+    """
     # Plot the diagnosis proportion of symptom_dx & disease_dx
     def plot_dx_prop(self, dx_num):
         grouped_ndoc = self.group_icdcodes_ndoc()
@@ -485,99 +588,6 @@ class Data(object):
             ax.set_ylabel('Age')
             ax.set_title(f'Age-keywords distribution ({labels[category]})')
             ax.legend(loc='lower left')
-    
-    def get_keywords_diff(self, pos_or_neg, category):
-        # Count keywords number in SSD and DSD medical records
-        kwn = {}
-        for dx_type, df in zip(['SSD', 'DSD'], [self.__sdf, self.__ddf]):
-            if ((pos_or_neg in [1, 2, 'total']) and (category in [4, 5, 6, 7, 8, 11])):
-                if (pos_or_neg == 'total'):
-                    df = df[df['label'] == category]
-                else:
-                    df = df[(df['posOrNeg'] == pos_or_neg) & (df['label'] == category)]
-            else:
-                raise ValueError('pos_or_neg must be 1, 2, or 3 / category msut be 4, 5, 6, 7, 8, or 11')
-            kwn[dx_type] = df.groupby('Content')['DocLabel'].nunique() / df.groupby('DocLabel').ngroups
-        # Construct DataFrame
-        kwn_df = pd.DataFrame(data=kwn).fillna(0)
-        kwn_df['Dif'] = kwn_df['SSD'] - kwn_df['DSD']
-        return kwn_df.sort_values(by='Dif', ascending=False)
-    
-    # Perform Fisher's exact test on a keyword's frequency in an icdcode
-    def test_kw_icd_rel(self, keyword, icdcode, mode):
-        counts = {}
-        df = self.__df
-        icd_df = df[df['ICD9'].str[:len(icdcode)] == icdcode]
-        for key, df in zip(['icd', 'all'], [icd_df, df]):
-            all_doc_count = df.groupby('DocLabel').ngroups
-            kw_doc_count = df[(df['posOrNeg'] == 1.0) & (df['Content'] == keyword)].groupby('DocLabel').ngroups
-            counts[key] = [kw_doc_count, all_doc_count - kw_doc_count]
-        return stats.fisher_exact([counts['icd'], counts['all']], alternative=mode) # Odds ratio & p-value
-
-    def test_kw_icds_rel(self, keyword, icdcodes, mode='greater'):
-        names = self.get_dx_names(icdcodes)
-        p_values = [self.test_kw_icd_rel(keyword, icdcode, mode)[1] for icdcode in icdcodes]
-        return pd.DataFrame(data={'names': names, 'p_values': p_values}, index=icdcodes)
-
-    # Perform Fisher's exact test on a keyword's frequency between two DataFrames (df2 is usually reference df)
-    def test_kw_rel(self, keyword, df1, df2, mode="greater", test="fisher"):
-        counts = []
-
-        for df in [df1, df2]:
-            all_doc_count = df.groupby("DocLabel").ngroups
-            kw_doc_count = df[df["Content"] == keyword].groupby("DocLabel").ngroups
-
-            counts.append([kw_doc_count, all_doc_count - kw_doc_count])
-        
-        print(counts)
-
-        if test == "fisher":
-            result = stats.fisher_exact(counts, alternative=mode)
-        elif test == "chi":
-            result = stats.chi2_contingency(counts)
-        else:
-            ValueError("arg test must be 'fisher' or 'chi'")
-        
-        return result # Return value: (oddsratio, p_value)
-
-    # Make keyword-cc relation (based on Fisher's exact test) DataFrame
-    def make_kw_cc_rel_by_test(self, kw_num, cc_num, test="fisher"):
-        # Get keywords
-        kw_series = self.get_whole_df().groupby("Content")["DocLabel"].nunique()
-        kws = kw_series.sort_values(ascending=False)[:kw_num].index
-        # Get ccs
-        ccs = self.get_cc_doc_counts(cc_num).index
-
-        # Construct df
-        df = pd.DataFrame(index=kws, columns=ccs, dtype=np.float64).fillna(0)
-
-        # Loop through ccs
-        for cc in ccs:
-            cc_df = self.get_whole_df_from_cc(cc)
-            not_cc_df = self.__df.drop(cc_df.index)
-            for kw in kws:
-                p_value = self.test_kw_rel(kw, cc_df, not_cc_df, test=test)[1]
-                df.at[kw, cc] = p_value
-                print(f"{kw} in {cc}: {p_value:.2f}")
-        
-        return df
-    
-    # Make keyword-cc relation DataFrame (sort according to the ratio of cc_related count / all count of a keyword in a chief complaint)
-    def make_kw_cc_rel_labelled(self, cc_code):
-        # DataFrame of the chief complaint
-        df = self.get_whole_df_from_cc(cc_code)
-
-        # Get total count & cc_related count of the keywords
-        kw_total_count = df.groupby("Content")["DocLabel"].nunique()
-        kw_ccr_count = df[df["CC_Related"] == True].groupby("Content")["DocLabel"].nunique()
-
-        # Concatenate two series and calculate the ratio
-        kw_concat = pd.concat([kw_ccr_count, kw_total_count], axis=1).fillna(0).convert_dtypes()
-        kw_concat.columns = ["cc_related", "all"]
-        kw_concat["ratio"] = kw_concat["cc_related"] / kw_concat["all"]
-        kw_concat.sort_values(by="ratio", ascending=False, inplace=True)
-
-        return kw_concat
     
     @staticmethod
     def get_sex_prop(df):
