@@ -46,7 +46,7 @@ class Data(object):
             self.ttas_dict = json.load(f)
 
         # Plot object
-        self.plot = Plot(labels=self.__labels, dataframe_obj=self.dataframe)
+        self.plot = Plot(labels=self.__labels, dataframe_obj=self.dataframe, stats_obj=self.stats)
     
     def get_labels(self):
         return self.__labels.copy()
