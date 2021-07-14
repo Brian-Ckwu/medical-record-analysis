@@ -1,18 +1,26 @@
-import matplotlib.pyplot as plt
+# import standard or third-party libraries
+
 from matplotlib.ticker import PercentFormatter
 from scipy import stats
+import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
 import json
 import os
 
+# import self-designed libraries
+from .dataframe import DataFrame
+
 class Data(object):
     def __init__(self, data_path):
-        # Convert the csv file to DataFrame
-        self.__df = pd.read_csv(data_path, index_col="index", encoding="utf-8", dtype={"Content": np.str_, "ICD9": np.str_})
-        # Fill the empty values in the "posOrNeg" column with 3.0
-        self.__df["posOrNeg"].fillna(3.0, inplace=True)
+        # DataFrame object
+        self.dataframe = DataFrame(data_path)
+        # Classify the icdcodes as symptom_dx or disease_dx
+        self.__df = self.dataframe.get_whole()
+        self.__sdf = self.dataframe.get_ssd()
+        self.__ddf = self.dataframe.get_dsd()
+
         # Keyword classification
         self.labels = {
             4: "diagnosis",
@@ -22,9 +30,6 @@ class Data(object):
             8: "others",
             11: "non_surgery"
         }
-        # Classify the icdcodes as symptom_dx or disease_dx
-        self.__sdf = self.__df.loc[(self.__df["ICD9"] >= "780") & (self.__df["ICD9"] < "800")] # DataFrame of symptom_dx
-        self.__ddf = self.__df.loc[(self.__df["ICD9"] < "780") | (self.__df["ICD9"] >= "800")] # DataFrame of disease_dx
         # Load auxiliary files for converting codes to names
         dirname = os.path.dirname(__file__)
         # ICD-9 code to diagnosis name
@@ -35,41 +40,6 @@ class Data(object):
         ttas_path = os.path.join(dirname, "ttas\\ttas_code_to_name.json")
         with open(ttas_path, mode="rt", encoding="utf-8") as f:
             self.ttas_dict = json.load(f)
-    
-    """
-        Get DataFrame functions:
-            1. From self.__df
-            2. From a specific df
-    """
-    # 1. From self.__df
-    # Get the whole DataFrame
-    def get_whole_df(self):
-        return self.__df.copy() # avoid modification of self.__df from the user
-    
-    # Get the SSD DataFrame
-    def get_whole_sdf(self):
-        return self.__sdf.copy()
-
-    # Get the DSD DataFrame
-    def get_whole_ddf(self):
-        return self.__ddf.copy()
-
-    # Get DataFrame of a particular TTAS code
-    def get_df_from_cc(self, ttas_code):
-        return self.__df[self.__df["CC"].str.contains(ttas_code)] # already a copy, no need to use .copy()
-
-    # Get DataFrame of an icdcode
-    def get_df_from_icdcode(self, icdcode):
-        return self.__df[self.__df["ICD9"] == icdcode] # already a copy
-
-    # 2. From a specific df
-    @staticmethod
-    def get_sub_sdf(df):
-        return df.loc[(df["ICD9"] >= "780") & (df["ICD9"] < "800")]
-    
-    @staticmethod
-    def get_sub_ddf(df):
-        return df.loc[(df["ICD9"] < "780") | (df["ICD9"] >= "800")]
 
     """
         Change DataFrame functions: changing the DataFrame and return a new one
@@ -78,7 +48,7 @@ class Data(object):
         with open(json_path, mode="rt", encoding="utf-8") as f:
             kw_groups = json.load(f)
 
-        df = self.get_whole_df()
+        df = self.__df
 
         for old, new in kw_groups.items():
             df.loc[df["Content"] == old, "Content"] = new
@@ -90,7 +60,7 @@ class Data(object):
         with open(json_path, mode="rt", encoding="utf-8") as f:
             kw_groups = json.load(f)
         
-        df = self.get_whole_df()
+        df = self.__df
 
         for ref_kw in kw_groups:
             to_be_grouped = kw_groups[ref_kw]
@@ -126,7 +96,7 @@ class Data(object):
             return df.groupby('Age')['DocLabel'].nunique().groupby(lambda age: age // 10).sum()
 
         d = {}
-        for name, df in zip(['SSD', 'DSD', 'All'], [self.__sdf, self.__ddf, self.get_whole_df()]):
+        for name, df in zip(['SSD', 'DSD', 'All'], [self.__sdf, self.__ddf, self.__df]):
             doc_count = get_age_doc(df)
             doc_count.at[8] = doc_count[doc_count.index >= 8].sum()
             doc_count.drop([9, 10], inplace=True)
@@ -236,7 +206,7 @@ class Data(object):
     def get_mean_nkw(self):
         d = {}
 
-        for dx_name, df in zip(['SSD', 'DSD', 'All'], [self.__sdf, self.__ddf, self.get_whole_df()]):
+        for dx_name, df in zip(['SSD', 'DSD', 'All'], [self.__sdf, self.__ddf, self.__df]):
             dd = {}
 
             # Process data
@@ -321,7 +291,7 @@ class Data(object):
     # Make keyword-cc relation (based on Fisher's exact test) DataFrame
     def make_kw_cc_rel_by_test(self, kw_num, cc_num, test="fisher"):
         # Get keywords
-        kw_series = self.get_whole_df().groupby("Content")["DocLabel"].nunique()
+        kw_series = self.__df.groupby("Content")["DocLabel"].nunique()
         kws = kw_series.sort_values(ascending=False)[:kw_num].index
         # Get ccs
         ccs = self.get_cc_doc_counts(cc_num).index
@@ -509,7 +479,7 @@ class Data(object):
 
     def plot_kw_prop_in_icdcodes(self, kw, icdcodes):
         # Initiate variables
-        df = self.get_whole_df().copy()
+        df = self.__df
         df = df.loc[df['Content'] == kw]
         df.loc[:, 'posOrNeg'].fillna(value=3.0, inplace=True)
         icdcodes_p3_ndoc = self.group_icdcodes_ndoc()
@@ -567,7 +537,7 @@ class Data(object):
             l_name, r_name = 'Male', 'Female'
         else:
             l_df, r_df = self.__sdf, self.__ddf
-            l_cat_df, r_cat_df = self.get_sub_sdf(cat_df), self.get_sub_ddf(cat_df)
+            l_cat_df, r_cat_df = self.dataframe.get_sub_sdf(cat_df), self.dataframe.get_sub_ddf(cat_df)
             l_name, r_name = 'Symptom_dx', 'Disease_dx'
 
         for i, df, cat_df in zip(range(2), [l_df, r_df], [l_cat_df, r_cat_df]):
