@@ -1,5 +1,4 @@
 # import standard or third-party libraries
-
 from matplotlib.ticker import PercentFormatter
 from scipy import stats
 import matplotlib.pyplot as plt
@@ -9,8 +8,9 @@ import numpy as np
 import json
 import os
 
-# import self-designed libraries
+# import self-designed libraries (component classes)
 from .dataframe import DataFrame
+from .stats import Stats
 
 class Data(object):
     def __init__(self, data_path):
@@ -20,6 +20,9 @@ class Data(object):
         self.__df = self.dataframe.get_whole()
         self.__sdf = self.dataframe.get_ssd()
         self.__ddf = self.dataframe.get_dsd()
+
+        # Stats object
+        self.stats = Stats()
 
         # Keyword classification
         self.labels = {
@@ -251,43 +254,6 @@ class Data(object):
     """
         Statistical tests functions
     """
-    # Perform Fisher's exact test on a keyword's frequency in an icdcode
-    def test_kw_icd_rel(self, keyword, icdcode, mode):
-        counts = {}
-        df = self.__df
-        icd_df = df[df['ICD9'].str[:len(icdcode)] == icdcode]
-        for key, df in zip(['icd', 'all'], [icd_df, df]):
-            all_doc_count = df.groupby('DocLabel').ngroups
-            kw_doc_count = df[(df['posOrNeg'] == 1.0) & (df['Content'] == keyword)].groupby('DocLabel').ngroups
-            counts[key] = [kw_doc_count, all_doc_count - kw_doc_count]
-        return stats.fisher_exact([counts['icd'], counts['all']], alternative=mode) # Odds ratio & p-value
-
-    def test_kw_icds_rel(self, keyword, icdcodes, mode='greater'):
-        names = self.get_dx_names(icdcodes)
-        p_values = [self.test_kw_icd_rel(keyword, icdcode, mode)[1] for icdcode in icdcodes]
-        return pd.DataFrame(data={'names': names, 'p_values': p_values}, index=icdcodes)
-
-    # Perform Fisher's exact test on a keyword's frequency between two DataFrames (df2 is usually reference df)
-    def test_kw_rel(self, keyword, df1, df2, mode="greater", test="fisher"):
-        counts = []
-
-        for df in [df1, df2]:
-            all_doc_count = df.groupby("DocLabel").ngroups
-            kw_doc_count = df[df["Content"] == keyword].groupby("DocLabel").ngroups
-
-            counts.append([kw_doc_count, all_doc_count - kw_doc_count])
-        
-        print(counts)
-
-        if test == "fisher":
-            result = stats.fisher_exact(counts, alternative=mode)
-        elif test == "chi":
-            result = stats.chi2_contingency(counts)
-        else:
-            ValueError("arg test must be 'fisher' or 'chi'")
-        
-        return result # Return value: (oddsratio, p_value)
-
     # Make keyword-cc relation (based on Fisher's exact test) DataFrame
     def make_kw_cc_rel_by_test(self, kw_num, cc_num, test="fisher"):
         # Get keywords
@@ -304,7 +270,7 @@ class Data(object):
             cc_df = self.get_whole_df_from_cc(cc)
             not_cc_df = self.__df.drop(cc_df.index)
             for kw in kws:
-                p_value = self.test_kw_rel(kw, cc_df, not_cc_df, test=test)[1]
+                p_value = self.stats.test_kw_rel(kw, cc_df, not_cc_df, test=test)[1]
                 df.at[kw, cc] = p_value
                 print(f"{kw} in {cc}: {p_value:.2f}")
         
