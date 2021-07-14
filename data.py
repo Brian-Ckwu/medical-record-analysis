@@ -11,9 +11,10 @@ import os
 # import self-designed libraries (component classes)
 from .dataframe import DataFrame
 from .stats import Stats
+from .plot import Plot
 
 class Data(object):
-    def __init__(self, data_path):
+    def __init__(self, data_path: str):
         # DataFrame object
         self.dataframe = DataFrame(data_path)
         # Classify the icdcodes as symptom_dx or disease_dx
@@ -25,7 +26,7 @@ class Data(object):
         self.stats = Stats()
 
         # Keyword classification
-        self.labels = {
+        self.__labels = {
             4: "diagnosis",
             5: "drug",
             6: "s/s",
@@ -43,6 +44,12 @@ class Data(object):
         ttas_path = os.path.join(dirname, "ttas\\ttas_code_to_name.json")
         with open(ttas_path, mode="rt", encoding="utf-8") as f:
             self.ttas_dict = json.load(f)
+
+        # Plot object
+        self.plot = Plot(labels=self.__labels, dataframe_obj=self.dataframe)
+    
+    def get_labels(self):
+        return self.__labels.copy()
 
     """
         Change DataFrame functions: changing the DataFrame and return a new one
@@ -178,7 +185,7 @@ class Data(object):
         # Initiate variables
         desc = {'ndoc': 0, 'kw_stat': {}}
         nkw_data = {'total': [], 'pos': [], 'neg': []}
-        for label_name in self.labels.values():
+        for label_name in self.__labels.values():
             nkw_data[label_name] = []        
         # Handling nkw_data
         doc_group = df.groupby('DocLabel')
@@ -193,7 +200,7 @@ class Data(object):
                     nkw_data[name].append(0)
             # by kw categories
             catg = sdf[1].groupby('label')
-            for label, label_name in self.labels.items():
+            for label, label_name in self.__labels.items():
                 try:
                     nkw_data[label_name].append(catg.get_group(label)['Content'].nunique())
                 except KeyError:
@@ -222,7 +229,7 @@ class Data(object):
             for value, label in labels.items():
                 dd[label] = df[df['posOrNeg'] == value].groupby('DocLabel')['Content'].nunique().sum()
             # Mean of different categories of keywords
-            for value, label in self.labels.items():
+            for value, label in self.__labels.items():
                 dd[label] = df[df['label'] == value].groupby('DocLabel')['Content'].nunique().sum()
             
             # Construct series
@@ -417,7 +424,7 @@ class Data(object):
     # Plot common keywords    
     def plot_common_kw(self, p_min, p_max=1, cat='total'): # cat: {4: 'diagnosis', 5: 'drug', 6: 's/s', 7: 'surgery', 8: 'others', 11: 'non_surgery'}
         fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(10, 8))
-        fig.suptitle(('total_kw' if cat == 'total' else f'{self.labels[cat]}_kw') + f' ({round(p_min * 100, 1)}% - {round(p_max * 100, 1)}%)', x=0.08, y=0.91, fontweight=600)
+        fig.suptitle(('total_kw' if cat == 'total' else f'{self.__labels[cat]}_kw') + f' ({round(p_min * 100, 1)}% - {round(p_max * 100, 1)}%)', x=0.08, y=0.91, fontweight=600)
         for i, df in enumerate([self.__sdf, self.__ddf]):
             # Fill the empty values in 'posOrNeg' column with 3.0
             df = df.copy()
@@ -482,7 +489,7 @@ class Data(object):
             raise Exception('The argument target can only be "sex" or "diagnosis".')
 
         # Extract DataFrame of certain category
-        labels = self.labels.copy()
+        labels = self.__labels.copy()
         labels[0], labels[1], labels[2] = 'total', 'pos', 'neg'
         df = self.__df
         if (not category):
