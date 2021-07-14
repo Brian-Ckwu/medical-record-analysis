@@ -1,8 +1,30 @@
+from pandas.core.frame import DataFrame
 from scipy import stats
+import pandas as pd
+
+from .dataframe import DataFrame
 
 class Stats(object):
-    def __init__(self):
-        pass
+    def __init__(self, dataframe_obj: DataFrame, whole_df: pd.DataFrame, sdf: pd.DataFrame, ddf: pd.DataFrame):
+        self.dataframe = dataframe_obj
+        self.__df = whole_df
+        self.__sdf = sdf
+        self.__ddf = ddf
+
+    def set_df(self, df) -> None:
+        self.__df = df
+        self.__sdf = self.dataframe.get_sub_sdf(df)
+        self.__ddf = self.dataframe.get_sub_ddf(df)
+
+    # Get the number of medical records (ssd / dsd / total)
+    def doc_counts(self) -> pd.DataFrame:
+        categories = ["SSD", "DSD", "All"]
+        doc_counts = [
+            self.__sdf.groupby("DocLabel").ngroups,
+            self.__ddf.groupby("DocLabel").ngroups,
+            self.__df.groupby("DocLabel").ngroups
+        ]
+        return pd.DataFrame(index=categories, data={"doc_counts": doc_counts})
 
     # Perform Fisher's exact test on a keyword's frequency between two DataFrames (df2 is usually reference df - df1)
     @staticmethod

@@ -23,7 +23,7 @@ class Data(object):
         self.__ddf = self.dataframe.get_dsd()
 
         # Stats object
-        self.stats = Stats()
+        self.stats = Stats(dataframe_obj=self.dataframe, whole_df=self.__df, sdf=self.__sdf, ddf=self.__ddf)
 
         # Keyword classification
         self.__labels = {
@@ -89,17 +89,6 @@ class Data(object):
     """
         Get Stats Functions: getting the stats of the DataFrame
     """
-    # Get the number of medical records (ssd / dsd / total)
-    def get_doc_counts(self):
-        def get_doc_count(df):
-            return df.groupby("DocLabel").ngroups
-            
-        return {
-            "SSD": get_doc_count(self.__sdf),
-            "DSD": get_doc_count(self.__ddf),
-            "All": get_doc_count(self.__df)
-        }
-    
     # Get doc counts stratified by age
     def get_age_doc_counts(self):
         def get_age_doc(df):
