@@ -141,34 +141,6 @@ class Data(object):
 
         return df[['Names', 'SSD', 'DSD', 'All']].convert_dtypes()
     
-    def get_icd_keyword_count(self, icdcode, keyword):
-        icd_df = self.__df[self.__df['ICD9'] == icdcode][['Content', 'posOrNeg', 'DocLabel']]
-        # Process the data by groupby()
-        keywords_count = icd_df.groupby('Content')['DocLabel'].nunique()
-        keywords_count_pn = icd_df.groupby(['Content', 'posOrNeg'])['DocLabel'].nunique()
-        def try_get_count(group, target):
-            try:
-                return group.at[target]
-            except KeyError:
-                return 0
-        count = {
-            'pos': try_get_count(keywords_count_pn, (keyword, 1.0)),
-            'neg': try_get_count(keywords_count_pn, (keyword, 2.0)),
-            'total': try_get_count(keywords_count, keyword)
-        }
-        return count
-    
-    def analyze_keyword_in_icdcode(self, keyword, icdcode):
-        total_df = self.__df[(self.__df['ICD9'] == icdcode) & (self.__df['Content'] == keyword)]
-        pos_df = total_df[total_df['posOrNeg'] == 1]
-        neg_df = total_df[total_df['posOrNeg'] == 2]
-        result = {
-            'total': total_df['DocLabel'].nunique(),
-            'pos': pos_df['DocLabel'].nunique(),
-            'neg': neg_df['DocLabel'].nunique()
-        }
-        return result
-    
     # Send the DataFrame you want to describe (e.g. s_df or d_df)
     def describe(self, df):
         # Initiate variables
