@@ -52,41 +52,6 @@ class Data(object):
         return self.__labels.copy()
 
     """
-        Change DataFrame functions: changing the DataFrame and return a new one
-    """
-    def change_kw(self, json_path):
-        with open(json_path, mode="rt", encoding="utf-8") as f:
-            kw_groups = json.load(f)
-
-        df = self.__df
-
-        for old, new in kw_groups.items():
-            df.loc[df["Content"] == old, "Content"] = new
-            print(f"{old} -> {new}")
-
-        return df
-
-    def group_kw(self, json_path):
-        with open(json_path, mode="rt", encoding="utf-8") as f:
-            kw_groups = json.load(f)
-        
-        df = self.__df
-
-        for ref_kw in kw_groups:
-            to_be_grouped = kw_groups[ref_kw]
-            for kw in to_be_grouped:
-                df.loc[df["Content"] == kw, "Content"] = ref_kw
-                print(f"{kw} -> {ref_kw}")
-            print("--------------------------------")
-
-        return df
-
-    @staticmethod
-    def split_keyword(df, keyword, delimiter="/"):
-        df.loc[df["Content"] == keyword, "Content"] = df.loc[df["Content"] == keyword, "Content"].str.split(delimiter)
-        return df.explode("Content").reset_index(drop=True) # drop=True: avoid adding the old index as a column in the new DataFrame
-
-    """
         Get Stats Functions: getting the stats of the DataFrame
     """
     # Get doc counts stratified by age
