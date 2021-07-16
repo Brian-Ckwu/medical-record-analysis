@@ -349,23 +349,6 @@ class Data(object):
 
         return [pd.DataFrame(data={'names': self.get_dx_names(dx_props[dx_type].index),'counts': dx_props[dx_type]}) for dx_type in dx_types]
     
-    # Plot the ndoc of symptom_dx & disease_dx
-    def plot_ndoc(self, s_desc, d_desc): # Get s_desc_ & d_desc from self.describe function
-        plt.figure('ndoc', figsize=(5, 3))
-        plt.title('ndoc')
-        plt.bar([1, 1.6], [s_desc['ndoc'], d_desc['ndoc']], width=0.4)
-        plt.xticks([1, 1.6], ['symptom_dx', 'disease_dx'])
-    
-    # Plot the proportion of positive and negative keywords
-    def plot_pos_and_neg(self, s_desc, d_desc): # Get s_desc_ & d_desc from self.describe function
-        fig, axs = plt.subplots(1, 2, figsize=(5, 3))
-        fig.suptitle('pos and neg')
-        for i, desc in enumerate([s_desc, d_desc]):
-            total, pos, neg = desc['kw_stat']['total']['mean'], desc['kw_stat']['pos']['mean'], desc['kw_stat']['neg']['mean']
-            dic = {'pos': pos, 'neg': neg, 'unlabelled': total - pos - neg}
-            axs[i].pie(dic.values(), labels=dic.keys(), autopct='%1.2f%%')
-            axs[i].set_title('symptom_dx' if i == 0 else 'disease_dx')
-    
     # Plot the bar chart of each keyword category (comparing symptom_dx & disease_dx)
     def plot_kw_categories(self, s_desc, d_desc): # Get s_desc_ & d_desc from self.describe function
         plt.figure('kw categories', figsize=(5, 3))

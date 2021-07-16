@@ -23,5 +23,9 @@ class Plot(object):
         self.__ddf = self.dataframe.get_sub_ddf(df)
     
     def doc_counts(self):
-        df = self.stats.doc_counts().loc[["SSD", "DSD"]]
-        return df.plot.bar()
+        doc_counts = self.stats.doc_counts().loc[["SSD", "DSD"]]
+        return doc_counts.plot.bar()
+
+    def pos_neg_prop(self):
+        props = self.stats.pos_neg_prop()
+        return props.plot.pie(subplots=True, autopct="%1.2f%%")

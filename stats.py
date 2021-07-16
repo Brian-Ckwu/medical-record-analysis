@@ -25,6 +25,20 @@ class Stats(object):
             self.__df.groupby("DocLabel").ngroups
         ]
         return pd.DataFrame(index=categories, data={"doc_counts": doc_counts})
+    
+    # Get the proportion of the positive, negative, and unlabelled keywords
+    def pos_neg_prop(self) -> pd.DataFrame:
+        # Variables
+        pos_neg_labels = [1.0, 2.0, 3.0]
+        dx_types = ["SSD", "DSD"]
+        dfs = [self.__sdf, self.__ddf]
+        # Construct DataFrame
+        pos_neg_prop = pd.DataFrame(index=pos_neg_labels, columns=dx_types)
+        for dx_type, df in zip(dx_types, dfs):
+            kw_count = df.groupby(["posOrNeg", "Content"])["DocLabel"].nunique().groupby(level=0).sum()
+            pos_neg_prop[dx_type] = kw_count / kw_count.sum()
+
+        return pos_neg_prop
 
     # Perform Fisher's exact test on a keyword's frequency between two DataFrames (df2 is usually reference df - df1)
     @staticmethod
