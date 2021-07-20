@@ -1,15 +1,15 @@
-from pandas.core.frame import DataFrame
 from scipy import stats
 import pandas as pd
 
 from .dataframe import DataFrame
 
 class Stats(object):
-    def __init__(self, dataframe_obj: DataFrame, whole_df: pd.DataFrame, sdf: pd.DataFrame, ddf: pd.DataFrame):
+    def __init__(self, dataframe_obj: DataFrame, whole_df: pd.DataFrame, sdf: pd.DataFrame, ddf: pd.DataFrame, labels: dict):
         self.dataframe = dataframe_obj
         self.__df = whole_df
         self.__sdf = sdf
         self.__ddf = ddf
+        self.__labels = labels
 
     def set_df(self, df) -> None:
         self.__df = df
@@ -33,12 +33,31 @@ class Stats(object):
         dx_types = ["SSD", "DSD"]
         dfs = [self.__sdf, self.__ddf]
         # Construct DataFrame
-        pos_neg_prop = pd.DataFrame(index=pos_neg_labels, columns=dx_types)
+        prop_df = pd.DataFrame(index=pos_neg_labels, columns=dx_types)
         for dx_type, df in zip(dx_types, dfs):
             kw_count = df.groupby(["posOrNeg", "Content"])["DocLabel"].nunique().groupby(level=0).sum()
-            pos_neg_prop[dx_type] = kw_count / kw_count.sum()
+            prop_df[dx_type] = kw_count / kw_count.sum()
 
-        return pos_neg_prop
+        return prop_df
+    
+    # Get the proportion of each keyword category (s/s, dx, drug, surg, non_surg, others)
+    def kw_cat_prop(self) -> pd.DataFrame:
+        categories = self.__labels
+        dfs = {"SSD": self.__sdf, "DSD": self.__ddf}
+        # Construct DataFrame
+        prop_df = pd.DataFrame(index=categories.values(), columns=dfs.keys())
+        for dx_type, df in dfs.items():
+            doc_counts = df.groupby("DocLabel").ngroups
+            kw_mean = dict()
+            for cat_label, cat_name in categories.items():
+                kw_df = df.loc[df["label"] == cat_label]
+                nkw = kw_df.groupby("DocLabel")["Content"].nunique().sum()
+                kw_mean[cat_name] = nkw / doc_counts
+            prop_df[dx_type] = pd.Series(kw_mean)
+            prop_df[dx_type] = prop_df[dx_type] / prop_df[dx_type].sum()
+
+        return prop_df
+
 
     # Perform Fisher's exact test on a keyword's frequency between two DataFrames (df2 is usually reference df - df1)
     @staticmethod

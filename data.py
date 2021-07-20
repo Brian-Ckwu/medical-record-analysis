@@ -22,18 +22,19 @@ class Data(object):
         self.__sdf = self.dataframe.get_ssd()
         self.__ddf = self.dataframe.get_dsd()
 
-        # Stats object
-        self.stats = Stats(dataframe_obj=self.dataframe, whole_df=self.__df, sdf=self.__sdf, ddf=self.__ddf)
-
         # Keyword classification
-        self.__labels = {
-            4: "diagnosis",
-            5: "drug",
+        self.__labels = { # ordered dict
             6: "s/s",
-            7: "surgery",
-            8: "others",
-            11: "non_surgery"
+            4: "dx",
+            5: "drug",
+            7: "surg",
+            11: "non_surg",
+            8: "others"
         }
+
+        # Stats object
+        self.stats = Stats(dataframe_obj=self.dataframe, whole_df=self.__df, sdf=self.__sdf, ddf=self.__ddf, labels=self.__labels)
+
         # Load auxiliary files for converting codes to names
         dirname = os.path.dirname(__file__)
         # ICD-9 code to diagnosis name
@@ -290,7 +291,7 @@ class Data(object):
     def plot_kw_categories(self, s_desc, d_desc): # Get s_desc_ & d_desc from self.describe function
         plt.figure('kw categories', figsize=(5, 3))
         plt.title('kw categories')
-        categories = ['s/s', 'diagnosis', 'drug', 'surgery', 'non_surgery', 'others']
+        categories = self.__labels.values()
         x = np.arange(len(categories))
         for i, desc in enumerate([s_desc, d_desc]):
             cat = np.array([desc['kw_stat'][cat]['mean'] for cat in categories]) / desc['kw_stat']['total']['mean']
