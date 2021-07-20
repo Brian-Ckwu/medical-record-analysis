@@ -286,19 +286,6 @@ class Data(object):
             dx_props[dx_type] = df.groupby('ICD9')['DocLabel'].nunique().groupby(lambda icd: icd[:3]).sum().sort_values(ascending=False).head(num)
 
         return [pd.DataFrame(data={'names': self.get_dx_names(dx_props[dx_type].index),'counts': dx_props[dx_type]}) for dx_type in dx_types]
-    
-    # Plot the bar chart of each keyword category (comparing symptom_dx & disease_dx)
-    def plot_kw_categories(self, s_desc, d_desc): # Get s_desc_ & d_desc from self.describe function
-        plt.figure('kw categories', figsize=(5, 3))
-        plt.title('kw categories')
-        categories = self.__labels.values()
-        x = np.arange(len(categories))
-        for i, desc in enumerate([s_desc, d_desc]):
-            cat = np.array([desc['kw_stat'][cat]['mean'] for cat in categories]) / desc['kw_stat']['total']['mean']
-            plt.bar(x + i * 0.3, cat, width=0.3, label='symptom_dx' if i == 0 else 'disease_dx')
-        plt.legend()
-        plt.xticks(x + 0.15, categories)
-        plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
 
     # Plot the keyword number distribution of every category
     def plot_nkw_dist_every_cat(self, s_data, d_data, bins): # Get s_desc_ & d_desc from self.describe function

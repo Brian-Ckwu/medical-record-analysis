@@ -29,3 +29,8 @@ class Plot(object):
     def pos_neg_prop(self):
         props = self.stats.pos_neg_prop()
         return props.plot.pie(subplots=True, autopct="%1.2f%%")
+    
+    def kw_cat_prop(self):
+        props = self.stats.kw_cat_prop()
+        return props.plot.bar()
+        
