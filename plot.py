@@ -24,7 +24,7 @@ class Plot(object):
     
     def doc_counts(self):
         doc_counts = self.stats.doc_counts().loc[["SSD", "DSD"]]
-        return doc_counts.plot.bar()
+        return doc_counts.plot.bar(rot=0)
 
     def pos_neg_prop(self):
         props = self.stats.pos_neg_prop()
@@ -32,5 +32,6 @@ class Plot(object):
     
     def kw_cat_prop(self):
         props = self.stats.kw_cat_prop()
-        return props.plot.bar()
-        
+        ax = props.plot.bar(rot=0)
+        ax.yaxis.set_major_formatter(PercentFormatter(1))
+        return ax
