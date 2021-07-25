@@ -58,13 +58,12 @@ class Stats(object):
 
         return prop_df
 
-
-    # Perform Fisher's exact test on a keyword's frequency between two DataFrames (df2 is usually reference df - df1)
+    # Perform Fisher's exact test / Chi-square test on a keyword's frequency between two DataFrames (df2 is usually reference df - df1)
     @staticmethod
-    def test_kw_rel(keyword, df1, df2, mode="greater", test="fisher"):
+    def test_kw_rel(keyword: str, test_df: pd.DataFrame, comp_df: pd.DataFrame, test="fisher", mode="greater"):
         counts = []
 
-        for df in [df1, df2]:
+        for df in [test_df, comp_df]:
             all_doc_count = df.groupby("DocLabel").ngroups
             kw_doc_count = df[df["Content"] == keyword].groupby("DocLabel").ngroups
 
@@ -72,9 +71,21 @@ class Stats(object):
 
         if test == "fisher":
             result = stats.fisher_exact(counts, alternative=mode)
-        elif test == "chi":
+        elif test == "chi2":
             result = stats.chi2_contingency(counts)
         else:
             ValueError("arg test must be 'fisher' or 'chi'")
         
         return result # Return value: (oddsratio, p_value)
+    
+    # Perform test_kw_rel() on a list of keywords
+    @staticmethod
+    def test_kws_rel(keywords, test_df: pd.DataFrame, comp_df: pd.DataFrame, test="fisher", mode="greater") -> pd.Series:
+        kws_rel = pd.Series(index=keywords)
+        # build series
+        for keyword in keywords:
+            test_result = Stats.test_kw_rel(keyword, test_df, comp_df, test, mode)
+            p_value = test_result[1]
+            kws_rel[keyword] = p_value
+
+        return kws_rel

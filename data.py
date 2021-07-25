@@ -489,18 +489,17 @@ class Data(object):
         row['CC'] = ';'.join(cc_list)
         return row
     
-    def build_kw_subdf_rel(self, prop: int, subdf: pd.DataFrame, refdf: pd.DataFrame) -> pd.DataFrame:
+    def build_kw_subdf_rel(self, prop: int, sub_df: pd.DataFrame, ref_df: pd.DataFrame) -> pd.DataFrame:
         # Get keyword list of keywords which appear in more than [prop] of documents
-        doc_count = subdf.groupby("DocLabel").ngroups
-        kw_counts = subdf.groupby("Content")["DocLabel"].nunique().sort_values(ascending=False)
+        doc_count = sub_df.groupby("DocLabel").ngroups
+        kw_counts = sub_df.groupby("Content")["DocLabel"].nunique().sort_values(ascending=False)
         kws = kw_counts[kw_counts >= prop * doc_count]
         # Construct DataFrame
         reldf = pd.DataFrame(index=kws.index, columns=["freq", "fisher", "chi2", "cTF-IDF", "cc_related"])
-
         # Get series respectively
-        # frequency
-        # fisher
-        # chi2
+        reldf["freq"] = kw_counts / doc_count # frequency
+        reldf["fisher"] = self.stats.test_kws_rel(keywords=kws.index, test_df=sub_df, comp_df=ref_df.drop(sub_df.index)) # fisher
+        reldf["chi2"] = self.stats.test_kws_rel(keywords=kws.index, test_df=sub_df, comp_df=ref_df.drop(sub_df.index), test="chi2") # chi2
         # cTF-IDF
         # cc_related
 
