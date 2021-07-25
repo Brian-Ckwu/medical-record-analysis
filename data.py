@@ -487,7 +487,25 @@ class Data(object):
                 cc_list.append(cc)
 
         row['CC'] = ';'.join(cc_list)
-        return row  
+        return row
+    
+    def build_kw_subdf_rel(self, prop: int, subdf: pd.DataFrame, refdf: pd.DataFrame) -> pd.DataFrame:
+        # Get keyword list of keywords which appear in more than [prop] of documents
+        doc_count = subdf.groupby("DocLabel").ngroups
+        kw_counts = subdf.groupby("Content")["DocLabel"].nunique().sort_values(ascending=False)
+        kws = kw_counts[kw_counts >= prop * doc_count]
+        # Construct DataFrame
+        reldf = pd.DataFrame(index=kws.index, columns=["freq", "fisher", "chi2", "cTF-IDF", "cc_related"])
+
+        # Get series respectively
+        # frequency
+        # fisher
+        # chi2
+        # cTF-IDF
+        # cc_related
+
+        # Merge into a DataFrame
+        return reldf
 
 def main():
     # test your code here
