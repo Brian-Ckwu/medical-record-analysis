@@ -501,7 +501,7 @@ class Data(object):
         # Get series respectively
         reldf["freq"] = kw_counts / doc_count # frequency
         reldf["fisher"] = self.stats.test_kws_rel(keywords=kws.index, test_df=sub_df, comp_df=ref_df.drop(sub_df.index)) # fisher
-        # cTF-IDF
+        reldf["cTF-IDF"] = self.stats.c_tf_idf_kws(keywords=kws.index, class_df=sub_df, ref_df=ref_df) # cTF-IDF
         reldf[f"{target}_related"] = self.stats.related_kws_prop(keywords=kws.index, sub_df=sub_df, target=target) # cc_related / icd_related
 
         # Merge into a DataFrame

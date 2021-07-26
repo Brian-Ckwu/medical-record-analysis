@@ -1,5 +1,6 @@
 from scipy import stats
 import pandas as pd
+import math
 
 from .dataframe import DataFrame
 
@@ -104,3 +105,22 @@ class Stats(object):
         for keyword in keywords:
             kws_prop[keyword] = Stats.related_kw_prop(keyword, sub_df, target)
         return kws_prop
+    
+    @staticmethod
+    def c_tf_idf(keyword: str, class_df: pd.DataFrame, ref_df: pd.DataFrame) -> float:
+        # calculate tf (scheme: log10(1 + keyword frequency)
+        kw_count = class_df[class_df["Content"] == keyword]["DocLabel"].nunique()
+        tf = math.log10(1 + kw_count) # +1: avoid the condition in which kw_count == 0
+        # calculate idf
+        doc_count = ref_df.groupby("DocLabel").ngroups
+        kw_total_count = ref_df[ref_df["Content"] == keyword]["DocLabel"].nunique()
+        idf = math.log10(doc_count / kw_total_count)
+        # tfidf
+        return tf * idf
+    
+    @staticmethod
+    def c_tf_idf_kws(keywords, class_df: pd.DataFrame, ref_df: pd.DataFrame) -> pd.Series:
+        s_tfidf = pd.Series(index=keywords)
+        for keyword in keywords:
+            s_tfidf[keyword] = Stats.c_tf_idf(keyword, class_df, ref_df)
+        return s_tfidf
