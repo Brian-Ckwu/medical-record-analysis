@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 class DataFrame(object):
-    def __init__(self, data_path):
+    def __init__(self, data_path: str):
         self.__df = pd.read_csv(data_path, index_col="index", encoding="utf-8", dtype={"Content": np.str_, "ICD9": np.str_})
         self.__df["posOrNeg"].fillna(3.0, inplace=True)
     
@@ -11,32 +11,32 @@ class DataFrame(object):
     """
     # 1. Get subdf from self.__df
     # Get the whole DataFrame
-    def get_whole(self):
+    def get_whole(self) -> pd.DataFrame:
         return self.__df.copy() # avoid modification of self.__df from the user
     
     # Get the SSD DataFrame
-    def get_ssd(self):
+    def get_ssd(self) -> pd.DataFrame:
         return self.__df.loc[(self.__df["ICD9"] >= "780") & (self.__df["ICD9"] < "800")].copy() # DataFrame of symptom_dx
 
     # Get the DSD DataFrame
-    def get_dsd(self):
+    def get_dsd(self) -> pd.DataFrame:
         return self.__df.loc[(self.__df["ICD9"] < "780") | (self.__df["ICD9"] >= "800")].copy() # DataFrame of disease_dx
 
     # Get DataFrame of a particular TTAS code
-    def get_cc(self, ttas_code):
+    def get_cc(self, ttas_code: str) -> pd.DataFrame:
         return self.__df.loc[self.__df["CC"].str.contains(ttas_code)].copy()
 
     # Get DataFrame of an icdcode
-    def get_icd(self, icdcode):
+    def get_icd(self, icdcode: str) -> pd.DataFrame:
         return self.__df.loc[self.__df["ICD9"] == icdcode].copy()
 
     # 2. Get subdf from a specific df
     @staticmethod
-    def get_sub_sdf(df):
+    def get_sub_sdf(df: pd.DataFrame) -> pd.DataFrame:
         return df.loc[(df["ICD9"] >= "780") & (df["ICD9"] < "800")]
     
     @staticmethod
-    def get_sub_ddf(df):
+    def get_sub_ddf(df: pd.DataFrame) -> pd.DataFrame:
         return df.loc[(df["ICD9"] < "780") | (df["ICD9"] >= "800")]
 
     """

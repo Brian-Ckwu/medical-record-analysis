@@ -17,7 +17,7 @@ class Plot(object):
         self.__ddf = self.dataframe.get_dsd()
         self.stats = stats_obj
 
-    def set_df(self, df) -> None:
+    def set_df(self, df: pd.DataFrame) -> None:
         self.__df = df
         self.__sdf = self.dataframe.get_sub_sdf(df)
         self.__ddf = self.dataframe.get_sub_ddf(df)
