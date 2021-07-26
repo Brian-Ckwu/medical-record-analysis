@@ -497,11 +497,10 @@ class Data(object):
         kw_counts = sub_df.groupby("Content")["DocLabel"].nunique().sort_values(ascending=False)
         kws = kw_counts[kw_counts >= prop * doc_count]
         # Construct DataFrame
-        reldf = pd.DataFrame(index=kws.index, columns=["freq", "fisher", "chi2", "cTF-IDF", f"{target}_related"])
+        reldf = pd.DataFrame(index=kws.index, columns=["freq", "fisher", "cTF-IDF", f"{target}_related"])
         # Get series respectively
         reldf["freq"] = kw_counts / doc_count # frequency
         reldf["fisher"] = self.stats.test_kws_rel(keywords=kws.index, test_df=sub_df, comp_df=ref_df.drop(sub_df.index)) # fisher
-        reldf["chi2"] = self.stats.test_kws_rel(keywords=kws.index, test_df=sub_df, comp_df=ref_df.drop(sub_df.index), test="chi2") # chi2
         # cTF-IDF
         reldf[f"{target}_related"] = self.stats.related_kws_prop(keywords=kws.index, sub_df=sub_df, target=target) # cc_related / icd_related
 
