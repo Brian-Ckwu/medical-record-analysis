@@ -89,3 +89,18 @@ class Stats(object):
             kws_rel[keyword] = p_value
 
         return kws_rel
+    
+    # The proportion of keywords labelled cc_related / icd_related in a sub_df (e.g. ~90% of "epigastric pain"s are labelled cc_related in A0301)
+    @staticmethod
+    def related_kw_prop(keyword: str, sub_df: pd.DataFrame, target: str) -> float:
+        kw_df = sub_df.loc[sub_df["Content"] == keyword]
+        kw_total_count = kw_df["DocLabel"].nunique()
+        cc_related_count = kw_df.loc[kw_df[f"{target.upper()}_Related"] == True]["DocLabel"].nunique()
+        return cc_related_count / kw_total_count
+    
+    @staticmethod
+    def related_kws_prop(keywords, sub_df: pd.DataFrame, target: str) -> pd.Series:
+        kws_prop = pd.Series(index=keywords)
+        for keyword in keywords:
+            kws_prop[keyword] = Stats.related_kw_prop(keyword, sub_df, target)
+        return kws_prop
