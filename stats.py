@@ -116,11 +116,11 @@ class Stats(object):
         kw_total_count = ref_df[ref_df["Content"] == keyword]["DocLabel"].nunique()
         idf = math.log10(doc_count / kw_total_count)
         # tfidf
-        return tf * idf
+        return (tf * idf, tf, idf)
     
     @staticmethod
     def c_tf_idf_kws(keywords, class_df: pd.DataFrame, ref_df: pd.DataFrame) -> pd.Series:
         s_tfidf = pd.Series(index=keywords)
         for keyword in keywords:
-            s_tfidf[keyword] = Stats.c_tf_idf(keyword, class_df, ref_df)
+            s_tfidf[keyword] = Stats.c_tf_idf(keyword, class_df, ref_df)[0]
         return s_tfidf
