@@ -497,13 +497,15 @@ class Data(object):
         kw_counts = sub_df.groupby("Content")["DocLabel"].nunique().sort_values(ascending=False)
         kws = kw_counts[kw_counts >= prop * doc_count]
         # Construct DataFrame
-        reldf = pd.DataFrame(index=kws.index, columns=["freq", "fisher", "cTF-IDF", f"{target}_related"])
-        # Get series respectively
+        reldf = pd.DataFrame(index=kws.index, columns=["freq", "fisher", "cTF", "IDF", "cTF-IDF", f"{target}_related"], dtype=np.float64)
         reldf["freq"] = kw_counts / doc_count # frequency
-        reldf["fisher"] = self.stats.test_kws_rel(keywords=kws.index, test_df=sub_df, comp_df=ref_df.drop(sub_df.index)) # fisher
-        reldf["cTF-IDF"] = self.stats.c_tf_idf_kws(keywords=kws.index, class_df=sub_df, ref_df=ref_df) # cTF-IDF
-        reldf[f"{target}_related"] = self.stats.related_kws_prop(keywords=kws.index, sub_df=sub_df, target=target) # cc_related / icd_related
-
+        # fill the values keyword by keyword
+        for kw in kws.index: # fisher, cTF, IDF, cTF-IDF, cc/icd_related
+            reldf.at[kw, "fisher"] = self.stats.test_kw_rel(kw, sub_df, ref_df.drop(sub_df.index))[1]
+            ctf_idf_results = self.stats.c_tf_idf(kw, sub_df, ref_df)
+            for col, result in zip(["cTF-IDF", "cTF", "IDF"], ctf_idf_results):
+                reldf.at[kw, col] = result
+            reldf.at[kw, f"{target}_related"] = self.stats.related_kw_prop(kw, sub_df, target)
         # Merge into a DataFrame
         return reldf
 
