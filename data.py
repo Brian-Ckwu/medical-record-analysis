@@ -35,6 +35,17 @@ class Data(object):
         # Stats object
         self.stats = Stats(dataframe_obj=self.dataframe, whole_df=self.__df, sdf=self.__sdf, ddf=self.__ddf, labels=self.__labels)
 
+        # Plot object
+        self.plot = Plot(labels=self.__labels, dataframe_obj=self.dataframe, stats_obj=self.stats)
+
+        # Store cc_codes list
+        self.__cc_codes = []
+        ccss = self.__df['CC'].unique()
+        for ccs in ccss:
+            for cc in ccs.split(';'):
+                if (cc not in self.__cc_codes):
+                    self.__cc_codes.append(cc)
+
         # Load auxiliary files for converting codes to names
         dirname = os.path.dirname(__file__)
         # ICD-9 code to diagnosis name
@@ -45,12 +56,12 @@ class Data(object):
         ttas_path = os.path.join(dirname, "ttas\\ttas_code_to_name.json")
         with open(ttas_path, mode="rt", encoding="utf-8") as f:
             self.ttas_dict = json.load(f)
-
-        # Plot object
-        self.plot = Plot(labels=self.__labels, dataframe_obj=self.dataframe, stats_obj=self.stats)
     
     def get_labels(self):
         return self.__labels.copy()
+    
+    def get_cc_codes(self):
+        return self.__cc_codes.copy()
 
     """
         Get Stats Functions: getting the stats of the DataFrame
