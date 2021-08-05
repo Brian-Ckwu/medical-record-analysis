@@ -51,6 +51,7 @@ class DataFrame(object):
     
     @staticmethod
     def group_kw(df: pd.DataFrame, kw_groups: dict) -> pd.DataFrame:
+        df = df.copy()
         for ref_kw in kw_groups:
             kws = kw_groups[ref_kw] # keywords to be grouped
             for kw in kws:
