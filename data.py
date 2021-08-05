@@ -62,6 +62,17 @@ class Data(object):
     
     def get_cc_codes(self):
         return self.__cc_codes.copy()
+    
+    def map_kw_to_cat(self) -> dict:
+        # Get (kw, label) tuples sorted by row count
+        whole_df = self.dataframe.get_whole()
+        kw_label_tuples = whole_df.groupby(["Content", "label"]).size().sort_values(ascending=False).index
+        # Map keyword to category
+        kw2cat = dict()
+        for kw, label in kw_label_tuples:
+            if not kw2cat.get(kw):
+                kw2cat[kw] = label
+        return kw2cat
 
     """
         Get Stats Functions: getting the stats of the DataFrame
@@ -80,6 +91,9 @@ class Data(object):
 
         return pd.DataFrame(data=d, index=[f'{i}0-{i}9' for i in range(2, 8)] + ['80+'])
     
+    def get_cc_doc_counts_new(self, mode="first") -> pd.DataFrame:
+        return
+
     # Get doc counts of each cheif complaint
     def get_cc_doc_counts(self, num):
         # Function: get all cc codes
