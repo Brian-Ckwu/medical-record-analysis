@@ -522,17 +522,19 @@ class Data(object):
         kw_counts = sub_df.groupby("Content")["DocLabel"].nunique().sort_values(ascending=False)
         kws = kw_counts[kw_counts >= prop * doc_count]
         # Construct DataFrame
-        reldf = pd.DataFrame(index=kws.index, columns=["freq", "fisher", "cTF", "IDF", "cTF-IDF", f"{target}_related"], dtype=np.float64)
+        reldf = pd.DataFrame(index=kws.index, columns=["label", "freq", "fisher", "cTF", "IDF", "cTF-IDF", f"{target}_related"], dtype=np.float64)
         reldf["freq"] = kw_counts / doc_count # frequency
         # fill the values keyword by keyword
-        for kw in kws.index: # fisher, cTF, IDF, cTF-IDF, cc/icd_related
+        kw2label = self.map_kw_to_cat()
+        for kw in kws.index: # label, fisher, cTF, IDF, cTF-IDF, cc/icd_related
+            reldf.at[kw, "label"] = kw2label.get(kw)
             reldf.at[kw, "fisher"] = self.stats.test_kw_rel(kw, sub_df, ref_df.drop(sub_df.index))[1]
             ctf_idf_results = self.stats.c_tf_idf(kw, sub_df, ref_df)
             for col, result in zip(["cTF-IDF", "cTF", "IDF"], ctf_idf_results):
                 reldf.at[kw, col] = result
             reldf.at[kw, f"{target}_related"] = self.stats.related_kw_prop(kw, sub_df, target)
-        # Merge into a DataFrame
-        return reldf
+        # Type conversion
+        return reldf.astype({"label": np.int8})
 
 def main():
     # test your code here
