@@ -1,4 +1,5 @@
 from scipy import stats
+from pingouin import intraclass_corr
 import pandas as pd
 import math
 
@@ -124,3 +125,12 @@ class Stats(object):
         for keyword in keywords:
             s_tfidf[keyword] = Stats.c_tf_idf(keyword, class_df, ref_df)[0]
         return s_tfidf
+    
+    @staticmethod
+    def icc(df: pd.DataFrame, id_col: str) -> pd.DataFrame:
+        df = df.melt(id_vars=[id_col])
+        return intraclass_corr(data=df, raters=id_col, targets="variable", ratings="value")
+    
+    @staticmethod
+    def spearman_cor(a: list, b: list) -> tuple:
+        return stats.spearmanr(a, b)
