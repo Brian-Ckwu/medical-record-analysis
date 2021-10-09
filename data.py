@@ -319,7 +319,7 @@ class Data(object):
             if (p_value < 0.001):
                 return 'p < 0.001'
             elif (p_value < 0.05):
-                return 'P < 0.05'
+                return 'p < 0.05'
             else:
                 return f'p = {round(p_value, 3)}'
         # Plotting process
